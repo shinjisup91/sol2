@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import nodemailer from "nodemailer";
 
 interface ConsultationData {
   name: string;
@@ -31,34 +30,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ 2️⃣ 이메일 발송 설정 (Gmail)
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.MAIL_USER, // Gmail 주소
-        pass: process.env.MAIL_PASS, // 앱 비밀번호
-      },
-    });
-
-    const mailOptions = {
-      from: `"솔투미래연" <${process.env.MAIL_USER}>`,
-      to: "info@sol2mireyun.com", // 수신자 이메일
+    // ✅ 2️⃣ 이메일 발송 (SendGrid 사용)
+    const emailData = {
+      to: "info@sol2mireyun.com",
+      from: process.env.SENDGRID_FROM_EMAIL || "noreply@sol2mireyun.com",
       subject: `[무료진단 신청] ${data.name}님의 상담 요청`,
       html: generateEmailTemplate(data),
     };
 
-    await transporter.sendMail(mailOptions);
-    console.log("✅ 이메일 발송 완료:", data.email);
+    if (process.env.SENDGRID_API_KEY) {
+      try {
+        const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            personalizations: [{ to: [{ email: emailData.to }] }],
+            from: { email: emailData.from },
+            subject: emailData.subject,
+            content: [{ type: "text/html", value: emailData.html }],
+          }),
+        });
+
+        if (response.ok) {
+          console.log("✅ 이메일 발송 완료:", data.email);
+        } else {
+          console.warn("⚠️ 이메일 발송 실패:", await response.text());
+        }
+      } catch (error) {
+        console.warn("⚠️ 이메일 발송 중 오류:", error);
+      }
+    } else {
+      console.warn("⚠️ SENDGRID_API_KEY 환경변수가 설정되지 않음");
+    }
 
     // ✅ 3️⃣ Google Sheets 기록
     const SHEET_WEBAPP_URL = process.env.SHEET_WEBAPP_URL;
     if (SHEET_WEBAPP_URL) {
-      await fetch(SHEET_WEBAPP_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      console.log("✅ Google Sheets 기록 완료:", data.name);
+      try {
+        await fetch(SHEET_WEBAPP_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        console.log("✅ Google Sheets 기록 완료:", data.name);
+      } catch (error) {
+        console.warn("⚠️ Google Sheets 기록 중 오류:", error);
+      }
     } else {
       console.warn("⚠️ SHEET_WEBAPP_URL 환경변수가 설정되지 않음");
     }
@@ -67,7 +87,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: "신청이 완료되었습니다. 이메일 및 시트에 기록되었습니다.",
+        message: "신청이 완료되었습니다. 담당자가 연락드리겠습니다.",
       },
       { status: 200 }
     );
