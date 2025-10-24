@@ -43,11 +43,11 @@ export async function POST(request: NextRequest) {
           body: JSON.stringify({
             personalizations: [
               { 
-                to: [{ email: "shinjisup@gmail.com" }] 
+                to: [{ email: "shinji9112@gmail.com" }] 
               }
             ],
             from: { 
-              email: process.env.SENDGRID_FROM_EMAIL || "shinjisup@gmail.com",
+              email: process.env.SENDGRID_FROM_EMAIL || "shinji9112@gmail.com",
               name: "솔투미래연"
             },
             subject: `[무료진단 신청] ${data.name}님의 상담 요청`,
