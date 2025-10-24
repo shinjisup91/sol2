@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
               }
             ],
             from: { 
-              email: process.env.SENDGRID_FROM_EMAIL || "noreply@sol2mireyun.com",
+              email: process.env.SENDGRID_FROM_EMAIL || "shinjisup@gmail.com",
               name: "솔투미래연"
             },
             subject: `[무료진단 신청] ${data.name}님의 상담 요청`,
@@ -64,7 +64,11 @@ export async function POST(request: NextRequest) {
           console.log("✅ 이메일 발송 완료:", data.email);
         } else {
           const errorText = await response.text();
-          console.warn("⚠️ 이메일 발송 실패:", errorText);
+          console.error("⚠️ 이메일 발송 실패:", {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorText
+          });
         }
       } catch (error) {
         console.warn("⚠️ 이메일 발송 중 오류:", error);
